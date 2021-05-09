@@ -13,7 +13,7 @@ m = Extension(
     include_dirs = [NVCOMP_INCLUDE_DIR, CUDA_INCLUDE_DIR],
     libraries = [NVCOMP_LIB_NAME, CUDA_LIB_NAME],
     library_dirs = [NVCOMP_LIB_DIR, CUDA_LIB_DIR],
-    sources = ['nvcomp_module.cpp'],
+    sources = ['./src/nvcomp_module.cpp'],
 )
 
 setup(
