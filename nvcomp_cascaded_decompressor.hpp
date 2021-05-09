@@ -33,26 +33,38 @@ static PyMemberDef nvcomp_CascadedDecompressor_members[] = {
 };
 
 static PyObject *
-nvcomp_CascadedDecompressor_configure(nvcomp_CascadedDecompressor *self, PyObject * args) {
+nvcomp_CascadedDecompressor_configure(nvcomp_CascadedDecompressor* self, PyObject* args, PyObject* kwargs) {
     void* compressed_data;
     Py_ssize_t compressed_size;
+    void* temp_size;
+    void* output_size;
+    void* stream = NULL;
 
-    if (!PyArg_ParseTuple(args, "Ln", &compressed_data, &compressed_size)) return NULL;
+    if (!PyArg_ParseTuple(args, "LnLL", &compressed_data, &compressed_size, &temp_size, &output_size)) return NULL;
 
-    size_t temp_size;
-    size_t output_size;
+    static char *kwlist[] = {
+        "compressed_data",
+        "compressed_size",
+        "temp_size",
+        "output_size",
+        "stream",
+        NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "LnLL|L", kwlist,
+        &compressed_data, &compressed_size, &temp_size, &output_size, &stream)) return NULL;
 
     self->d->configure(
-        compressed_data, compressed_size,
-        &temp_size,
-        &output_size,
-        NULL);
+        compressed_data,
+        compressed_size,
+        (size_t*)temp_size,
+        (size_t*)output_size,
+        (cudaStream_t)stream);
 
-    return Py_BuildValue("(nn)", temp_size, output_size);
+    return PyLong_FromLong(0);
 }
 
 static PyObject *
-nvcomp_CascadedDecompressor_decompress(nvcomp_CascadedDecompressor *self, PyObject *args, PyObject * kwargs) {
+nvcomp_CascadedDecompressor_decompress(nvcomp_CascadedDecompressor* self, PyObject* args, PyObject* kwargs) {
 
     // All pointers are CUDA device pointers.
     void* compressed_data;
@@ -61,23 +73,36 @@ nvcomp_CascadedDecompressor_decompress(nvcomp_CascadedDecompressor *self, PyObje
     Py_ssize_t temp_size;
     void* uncompressed_data;
     Py_ssize_t uncompressed_size;
-    if (!PyArg_ParseTuple(args, "LnLnLn",
+    void* stream = NULL;
+
+    static char* kwlist[] = {
+        "compressed_data",
+        "compressed_size",
+        "temp_data",
+        "temp_size",
+        "uncompressed_data",
+        "uncompressed_size",
+        "stream",
+        NULL
+    };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "LnLnLn|L", kwlist,
         &compressed_data, &compressed_size,
         &temp_data, &temp_size,
-        &uncompressed_data, &uncompressed_size)) return NULL;
+        &uncompressed_data, &uncompressed_size, &stream)) return NULL;
 
     self->d->decompress_async(
         compressed_data, compressed_size,
         temp_data, temp_size,
         uncompressed_data, uncompressed_size,
-        NULL);
+        (cudaStream_t)stream);
 
     return PyLong_FromLong(0);
 }
 
 static PyMethodDef nvcomp_CascadedDecompressor_methods[] = {
-    {"configure", (PyCFunction) nvcomp_CascadedDecompressor_configure, METH_VARARGS, "determine memory usage for decompression"},
-    {"decompress", (PyCFunction) nvcomp_CascadedDecompressor_decompress, METH_VARARGS, "do decompression"},
+    {"configure", (PyCFunction) nvcomp_CascadedDecompressor_configure, METH_VARARGS | METH_KEYWORDS, "Determine memory usage for decompression"},
+    {"decompress", (PyCFunction) nvcomp_CascadedDecompressor_decompress, METH_VARARGS | METH_KEYWORDS, "Do decompression"},
     {NULL}  /* Sentinel */
 };
 

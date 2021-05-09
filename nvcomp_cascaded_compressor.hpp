@@ -65,23 +65,35 @@ nvcomp_CascadedCompressor_compress(nvcomp_CascadedCompressor *self, PyObject *ar
     void* compressed_data;
     // page-locked single int64 value (cudaMallocHost)
     void* compressed_size;
-    if (!PyArg_ParseTuple(args, "LnLnLL",
+    void* stream = NULL;
+
+    static char *kwlist[] = {
+        "uncompressed_data",
+        "uncompressed_size",
+        "temp_data",
+        "temp_size",
+        "compressed_data",
+        "compressed_size",
+        "stream",
+        NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "LnLnLL|L", kwlist,
         &uncompressed_data, &uncompressed_size,
         &temp_data, &temp_size,
-        &compressed_data, &compressed_size)) return NULL;
+        &compressed_data, &compressed_size, &stream)) return NULL;
 
     self->c->compress_async(
         uncompressed_data, uncompressed_size,
         temp_data, temp_size,
         compressed_data, (size_t*)compressed_size,
-        NULL);
+        (cudaStream_t)stream);
 
     return PyLong_FromLong(0);
 }
 
 static PyMethodDef nvcomp_CascadedCompressor_methods[] = {
     {"configure", (PyCFunction) nvcomp_CascadedCompressor_configure, METH_VARARGS, "determine memory usage for compression"},
-    {"compress", (PyCFunction) nvcomp_CascadedCompressor_compress, METH_VARARGS, "do compression"},
+    {"compress", (PyCFunction) nvcomp_CascadedCompressor_compress, METH_VARARGS | METH_KEYWORDS, "do compression"},
     {NULL}  /* Sentinel */
 };
 
