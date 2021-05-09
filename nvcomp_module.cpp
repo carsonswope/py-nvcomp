@@ -5,8 +5,9 @@
 #include <nvcomp.h>
 #include <nvcomp/cascaded.hpp>
 
-#include "nvcomp_cascaded_compressor.h"
-#include "nvcomp_cascaded_decompressor.h"
+#include "nvcomp_shared.hpp"
+#include "nvcomp_cascaded_compressor.hpp"
+#include "nvcomp_cascaded_decompressor.hpp"
 
 static PyModuleDef nvcomp_module = {
         PyModuleDef_HEAD_INIT,

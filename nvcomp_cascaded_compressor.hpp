@@ -19,19 +19,12 @@ nvcomp_CascadedCompressor_init(nvcomp_CascadedCompressor *self, PyObject *args, 
     bool use_bp;
     if (!PyArg_ParseTuple(args, "siip", &np_type_chars, &num_RLEs, &num_deltas, &use_bp)) return -1;
 
-    // determine nvcomp type from np type string.
     nvcompType_t nvcomp_type;
-    const std::string np_type_str(np_type_chars);
-    if (np_type_str.compare("i4") == 0) {
-        // int32
-        nvcomp_type = nvcomp::TypeOf<int>();
-    } else if (np_type_str.compare("u2") == 0) {
-        // uint16
-        nvcomp_type = nvcomp::TypeOf<uint16_t>();
-    } else {
-        // TODO: more types!
-        printf("Unknown numpy type '%s'\n", np_type_chars);
-        return NULL;
+    try {
+        nvcomp_type = nvcomp_parse_np_type(np_type_chars);
+    } catch (const std::runtime_error& e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+        return -1;
     }
 
     self->c = new nvcomp::CascadedCompressor(nvcomp_type, num_RLEs, num_deltas, use_bp);

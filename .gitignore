@@ -1,2 +1,5 @@
 .vscode
+# build output from distutils
 build
+# build output from original nvcomp repo
+nvcomp/
