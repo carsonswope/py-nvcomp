@@ -7,16 +7,7 @@ ctypedef long long ptr_t
 cdef class CascadedCompressor:
     cdef _CascadedCompressor* c
 
-    def __cinit__(self, str typestr, int num_RLEs, int num_deltas, bool use_bp):
-
-        if typestr == '<i4':
-            t = nvcompType_t.NVCOMP_TYPE_INT
-        elif typestr == '<u2':
-            t = nvcompType_t.NVCOMP_TYPE_USHORT
-        else:
-            print('Failed to parse typestr ', typestr, '. Defaulting to <i4')
-            t = nvcompType_t.NVCOMP_TYPE_INT
-
+    def __cinit__(self, nvcompType_t t, int num_RLEs, int num_deltas, bool use_bp):
         self.c = new _CascadedCompressor(t, num_RLEs, num_deltas, use_bp)
 
     def __dealloc__(self):
@@ -25,14 +16,14 @@ cdef class CascadedCompressor:
     def configure(self, size_t in_bytes, ptr_t temp_bytes, ptr_t out_bytes):
         self.c.configure(in_bytes, <size_t*>temp_bytes, <size_t*>out_bytes)
 
-    def compress_async(self, ptr_t uncompressed_data, size_t uncompressed_data_size, ptr_t temp_data, size_t temp_data_size, ptr_t compressed_data, ptr_t compressed_data_size, ptr_t stream = 0):
+    def compress_async(self, ptr_t in_ptr, size_t in_size, ptr_t temp_ptr, size_t temp_size, ptr_t out_ptr, ptr_t out_size, ptr_t stream = 0):
         self.c.compress_async(
-            <void*>uncompressed_data,
-            uncompressed_data_size,
-            <void*>temp_data,
-            temp_data_size,
-            <void*>compressed_data,
-            <size_t*>compressed_data_size,
+            <void*>in_ptr,
+            in_size,
+            <void*>temp_ptr,
+            temp_size,
+            <void*>out_ptr,
+            <size_t*>out_size,
             <cudaStream_t>stream)
 
 cdef class CascadedDecompressor:

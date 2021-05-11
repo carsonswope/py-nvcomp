@@ -4,9 +4,8 @@ import pycuda.gpuarray as cu_array
 
 import numpy as np
 
-# import pylibimport
-# nvcomp = pylibimport.import_module('./nvcomp.cp37-win_amd64.pyd')
 import nvcomp
+from nvcomp import nvcompType_t
 
 num_elements = 10000
 d = np.zeros((num_elements,), dtype=np.int32)
@@ -16,7 +15,7 @@ for i in range(num_elements):
 d_size = d.size * d.itemsize
 d_cu = cu_array.to_gpu(d)
 
-compressor = nvcomp.CascadedCompressor('<i4', 2, 1, True)
+compressor = nvcomp.CascadedCompressor(nvcompType_t.NVCOMP_TYPE_INT, 2, 1, True)
 
 compressor_temp_size = cu.pagelocked_zeros((1,), dtype=np.int64)
 compressor_max_output_size = cu.pagelocked_zeros((1,), dtype=np.int64)
