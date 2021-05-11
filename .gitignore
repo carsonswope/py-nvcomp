@@ -3,3 +3,6 @@
 build
 # build output from original nvcomp repo
 nvcomp/
+*.pyd
+# auto generated..
+src/nvcomp.cpp
