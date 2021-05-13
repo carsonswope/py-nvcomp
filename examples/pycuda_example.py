@@ -17,13 +17,13 @@ d_cu = cu_array.to_gpu(d)
 
 compressor = nvcomp.CascadedCompressor(nvcompType_t.NVCOMP_TYPE_INT, 2, 1, True)
 
-compressor_temp_size = cu.pagelocked_zeros((1,), dtype=np.int64)
-compressor_max_output_size = cu.pagelocked_zeros((1,), dtype=np.int64)
-
+# compressor.configure is fully synchronous (presumably fully host-side code), no need for pagelock
+compressor_temp_size = np.zeros((1,), dtype=np.int64)
+compressor_max_output_size = np.zeros((1,), dtype=np.int64)
 compressor.configure(
     d_size,
-    compressor_temp_size.__array_interface__['data'][0],
-    compressor_max_output_size.__array_interface__['data'][0])
+    compressor_temp_size,
+    compressor_max_output_size)
 
 print('input size:                 ', d_size)
 print('compressor temp size:       ', compressor_temp_size[0])
@@ -37,12 +37,12 @@ compressor_output_size = cu.pagelocked_zeros((1,), np.int64)
 s = cu.Stream()
 
 compressor.compress_async(
-    d_cu.ptr,
+    d_cu,
     d_size,
-    compressor_temp_cu.ptr,
+    compressor_temp_cu,
     compressor_temp_size,
-    compressor_output_cu.ptr,
-    compressor_output_size.__array_interface__['data'][0],
+    compressor_output_cu,
+    compressor_output_size,
     stream=s.handle)
 
 s.synchronize()
@@ -53,10 +53,10 @@ decompressor = nvcomp.CascadedDecompressor()
 decompressor_temp_size = cu.pagelocked_zeros((1,), np.int64)
 decompressor_output_size = cu.pagelocked_zeros((1,), np.int64)
 decompressor.configure(
-    compressor_output_cu.ptr,
+    compressor_output_cu,
     compressor_output_size[0],
-    decompressor_temp_size.__array_interface__['data'][0],
-    decompressor_output_size.__array_interface__['data'][0],
+    decompressor_temp_size,
+    decompressor_output_size,
     stream=s.handle)
 
 s.synchronize()
@@ -71,11 +71,11 @@ decompressor_temp_cu = cu_array.GPUArray((decompressor_temp_size[0],), dtype=np.
 d_cu.fill(np.int32(0))
 
 decompressor.decompress_async(
-    compressor_output_cu.ptr,
+    compressor_output_cu,
     compressor_output_size[0],
-    decompressor_temp_cu.ptr,
+    decompressor_temp_cu,
     decompressor_temp_size[0],
-    d_cu.ptr,
+    d_cu,
     d_size,
     stream=s.handle)
 
