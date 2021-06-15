@@ -1,7 +1,8 @@
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 
-from nvcomp cimport cudaStream_t, nvcompType_t, _CascadedCompressor, _CascadedDecompressor
+from nvcomp cimport cudaStream_t, nvcompType_t, _CascadedCompressor, _CascadedDecompressor, \
+    _nvcompBatchedLZ4DecompressAsync # low-level API
 
 cpdef __get_array_interface_ptr(a):
     return a.__array_interface__['data'][0]
@@ -83,3 +84,54 @@ cdef class CascadedDecompressor:
             <void*>out_ptr,
             <size_t>out_bytes,
             <cudaStream_t>stream)
+
+# Batched LZ4
+cpdef batchedLZ4CompressGetTempSize(batch_size, max_uncompressed_chunk_bytes, temp_bytes):
+    cdef uintptr_t temp_bytes_ptr = __get_ptr(temp_bytes)
+    _nvcompBatchedLZ4CompressGetTempSize(
+        <size_t> batch_size,
+        <size_t> max_uncompressed_chunk_bytes,
+        <size_t*> temp_bytes_ptr)
+
+cpdef batchedLZ4CompressGetMaxOutputChunkSize(max_uncompressed_chunk_bytes, max_compressed_bytes):
+    cdef uintptr_t max_compressed_bytes_ptr = __get_ptr(max_compressed_bytes)
+    _nvcompBatchedLZ4CompressGetMaxOutputChunkSize(
+        <size_t> max_uncompressed_chunk_bytes,
+        <size_t*>max_compressed_bytes_ptr)
+
+cpdef batchedLZ4CompressAsync(device_in_ptrs_arr, device_in_bytes_arr, batch_size, temp_arr, temp_bytes, device_out_ptrs_arr, device_out_bytes_arr, uintptr_t stream=0):
+    cdef uintptr_t device_in_ptrs_ptr = __get_ptr(device_in_ptrs_arr)
+    cdef uintptr_t device_in_bytes_ptr = __get_ptr(device_in_bytes_arr)
+    cdef uintptr_t device_out_ptrs_ptr = __get_ptr(device_out_ptrs_arr)
+    cdef uintptr_t device_out_bytes_ptr = __get_ptr(device_out_bytes_arr)
+    cdef uintptr_t temp_ptr = __get_ptr(temp_arr)
+    _nvcompBatchedLZ4CompressAsync(
+        <void**>device_in_ptrs_ptr,
+        <size_t*>device_in_bytes_ptr,
+        0, # max_uncompressed_chunk_bytes
+        <size_t>batch_size,
+        <void*>temp_ptr,
+        <size_t>temp_bytes,
+        <void**>device_out_ptrs_ptr,
+        <size_t*>device_out_bytes_ptr,
+        <cudaStream_t>stream)
+
+cpdef batchedLZ4DecompressAsync(device_in_ptrs_arr, device_in_bytes_arr, batch_size, device_out_ptrs_arr, uintptr_t stream=0):
+    cdef uintptr_t device_in_ptrs_ptr = __get_ptr(device_in_ptrs_arr)
+    cdef uintptr_t device_in_bytes_ptr = __get_ptr(device_in_bytes_arr)
+    cdef uintptr_t device_out_ptrs_ptr = __get_ptr(device_out_ptrs_arr)
+    
+    # device_out_bytes and temp_ptr arguments to nvcompBatchedLZ4DecompressAsync are unused but CudaUtils::device_pointer() checks
+    # to make sure that they are valid CUDA pointers, so need to pass something to those arguments that isn't nullptr
+    cdef uintptr_t _unused_ptr = (<uintptr_t*>device_in_ptrs_ptr)[0]
+
+    _nvcompBatchedLZ4DecompressAsync(
+        <void**>device_in_ptrs_ptr,
+        <size_t*>device_in_bytes_ptr,
+        <size_t*>_unused_ptr, # device_out_bytes
+        0, # max_uncompressed_chunk_bytes
+        <size_t>batch_size,
+        <void*>_unused_ptr, # temp ptr
+        0, # temp bytes
+        <void**>device_out_ptrs_ptr,
+        <cudaStream_t>stream)
