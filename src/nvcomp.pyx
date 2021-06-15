@@ -1,7 +1,9 @@
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
 
-from nvcomp cimport cudaStream_t, nvcompType_t, _CascadedCompressor, _CascadedDecompressor, \
+from nvcomp cimport cudaStream_t, nvcompType_t, \
+    _LZ4Compressor, _LZ4Decompressor, \
+    _CascadedCompressor, _CascadedDecompressor, \
     _nvcompBatchedLZ4DecompressAsync # low-level API
 
 cpdef __get_array_interface_ptr(a):
@@ -21,6 +23,72 @@ cpdef __get_ptr(a):
     else:
         raise AttributeError('Argument does not implement __cuda_array_interface__ or __array_interface__')
 
+# LZ4 Compressor / Decompressor
+cdef class LZ4Compressor:
+    cdef _LZ4Compressor* c
+
+    def __cinit__(self, size_t chunk_size=0):
+        self.c = new _LZ4Compressor(chunk_size)
+    
+    def __dealloc__(self):
+        del self.c
+    
+    def configure(self, in_bytes, temp_bytes, out_bytes):
+        cdef uintptr_t temp_bytes_ptr = __get_array_interface_ptr(temp_bytes)
+        cdef uintptr_t out_bytes_ptr = __get_array_interface_ptr(out_bytes)
+        self.c.configure(
+            <size_t>in_bytes,
+            <size_t*>temp_bytes_ptr,
+            <size_t*>out_bytes_ptr)
+
+    def compress_async(self, in_arr, in_bytes, temp_arr, temp_bytes, out_arr, out_bytes, uintptr_t stream = 0):
+        cdef uintptr_t in_ptr = __get_cuda_array_interface_ptr(in_arr)
+        cdef uintptr_t temp_ptr = __get_cuda_array_interface_ptr(temp_arr)
+        cdef uintptr_t out_ptr = __get_cuda_array_interface_ptr(out_arr)
+        cdef uintptr_t out_bytes_ptr = __get_ptr(out_bytes)
+        self.c.compress_async(
+            <void*>in_ptr,
+            <size_t>in_bytes,
+            <void*>temp_ptr,
+            <size_t>temp_bytes,
+            <void*>out_ptr,
+            <size_t*>out_bytes_ptr,
+            <cudaStream_t>stream)
+
+cdef class LZ4Decompressor:
+    cdef _LZ4Decompressor* d
+
+    def __cinit__(self):
+        self.d = new _LZ4Decompressor()
+
+    def __dealloc__(self):
+        del self.d
+
+    cpdef configure(self, in_arr, in_bytes, temp_bytes, out_bytes, uintptr_t stream = 0):
+        cdef uintptr_t in_ptr = __get_cuda_array_interface_ptr(in_arr)
+        cdef uintptr_t temp_bytes_ptr = __get_ptr(temp_bytes)
+        cdef uintptr_t out_bytes_ptr = __get_ptr(out_bytes)
+        self.d.configure(
+            <void*>in_ptr,
+            <size_t>in_bytes,
+            <size_t*>temp_bytes_ptr,
+            <size_t*>out_bytes_ptr,
+            <cudaStream_t>stream)
+
+    def decompress_async(self, in_arr, in_bytes, temp_arr, temp_bytes, out_arr, out_bytes, uintptr_t stream = 0):
+        cdef uintptr_t in_ptr = __get_cuda_array_interface_ptr(in_arr)
+        cdef uintptr_t temp_ptr = __get_cuda_array_interface_ptr(temp_arr)
+        cdef uintptr_t out_ptr = __get_cuda_array_interface_ptr(out_arr)
+        self.d.decompress_async(
+            <void*>in_ptr,
+            <size_t>in_bytes,
+            <void*>temp_ptr,
+            <size_t>temp_bytes,
+            <void*>out_ptr,
+            <size_t>out_bytes,
+            <cudaStream_t>stream)
+
+# Cascaded Compressor / Decompressor
 cdef class CascadedCompressor:
     cdef _CascadedCompressor* c
 

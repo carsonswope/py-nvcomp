@@ -20,6 +20,44 @@ cdef extern from "nvcomp.h":
         nvcompErrorCudaError = 1000,
         nvcompErrorInternal = 10000
 
+# LZ4 Compressor
+cdef extern from "nvcomp/lz4.hpp" namespace 'nvcomp':
+    cdef cppclass _LZ4Compressor "nvcomp::LZ4Compressor":
+        _LZ4Compressor(size_t chunk_size) except+
+
+        void configure(
+            const size_t in_bytes,
+            size_t* temp_bytes,
+            size_t* out_bytes) except+
+        
+        void compress_async(
+            const void* in_ptr,
+            const size_t in_bytes,
+            void* temp_ptr,
+            const size_t temp_bytes,
+            void* out_ptr,
+            size_t* out_bytes,
+            cudaStream_t stream) except+
+
+    cdef cppclass _LZ4Decompressor "nvcomp::LZ4Decompressor":
+        _LZ4Decompressor() except+
+
+        void configure(
+            const void* in_ptr,
+            const size_t in_bytes,
+            size_t* temp_bytes,
+            size_t* out_bytes,
+            cudaStream_t stream) except+
+        
+        void decompress_async(
+            const void* in_ptr,
+            const size_t in_bytes,
+            void* temp_ptr,
+            const size_t temp_bytes,
+            void* out_ptr,
+            const size_t out_bytes,
+            cudaStream_t stream) except+
+
 # Cascaded Compressor
 cdef extern from "nvcomp/cascaded.hpp" namespace 'nvcomp':
     cdef cppclass _CascadedCompressor "nvcomp::CascadedCompressor":
